@@ -35,9 +35,10 @@
 	digit4:			.asciiz "4"
 	
 	#Ball
-	xDirection:		.word 	0	
+	xDirection:		.word 	1	
 	yDirection:		.word 	0	
 	collision:		.word	0
+	xOffset:		.word	1
 	yOffset:		.word	0
 	
 .text
@@ -55,7 +56,7 @@ main:
 	
 	#Draw Paddle 2
 	li		$a0, 62
-	li		$a1, 33
+	li		$a1, 29
 	li		$a2, 7
 	li		$a3, 15
 	jal		drawVertLine
@@ -66,10 +67,24 @@ main:
 	li		$a2, 7
 	li		$a3, 64
 	jal		drawHorzLine
+
+	#Draw Walls
+	li		$a0, 0
+	li		$a1, 15
+	li		$a2, 7
+	li		$a3, 64
+	jal		drawHorzLine
 	
 	#Draw Walls
 	li		$a0, 0
 	li		$a1, 63
+	li		$a2, 7
+	li		$a3, 64
+	jal		drawHorzLine
+	
+	#Draw Walls
+	li		$a0, 0
+	li		$a1, 62
 	li		$a2, 7
 	li		$a3, 64
 	jal		drawHorzLine
@@ -259,32 +274,60 @@ spawnBall:
 	lw		$a0, 4($sp)		#X
 	lw		$a1, 8($sp)		#Y
 	jal		getNextX
-	jal		checkCollision
-	jal		getNextY
-	jal		checkCollision
 	jal		calculateAddress	#Get ball position address
+	jal		checkCollision
 	
-	#Check Collision
+	#Check X Collision
+	lw		$t0, collision		#Load collision
+	beqz 		$t0, noCollisionX	#If collision, calculate new Y
+	
+	#Reset Collision
+	li		$t0, 0
+	sw		$t0, collision
+
+	#Calculate Y Offset
 	lw		$a0, 4($sp)		#X
 	lw		$a1, 8($sp)		#Y
 	jal		getNextX
 	jal		getNextY
+	jal		calcY
+	
+	#Flip Sign of offset and X Direction
+	lw		$t0, xOffset
+	lw		$t1, xDirection
+	mul		$t0, $t0, -1
+	mul		$t1, $t1, -1
+	sw		$t0, xOffset
+	sw		$t0, xDirection
+	j		moveBall		#Jump to move ball
+	
+	#No Collision, Continue
+	noCollisionX:
+	lw		$a0, 4($sp)		#X
+	lw		$a1, 8($sp)		#Y
+	
+	#Check Twice
+	jal		getNextY
+	jal		calculateAddress	#Get ball position address
 	jal		checkCollision
+	
+	#Check Y Collision
+	lw		$t0, collision		#Load collision
+	beqz 		$t0, moveBall		#If collision, calculate new Y
+	jal		calcYWall
 
+	moveBall:
 	#Move
 	lw		$a0, 4($sp)		#X
 	lw		$a1, 8($sp)		#Y
+	lw		$t0, xOffset		#Load offset
+	add		$a0, $a0, $t0		#Add
 	lw		$t0, yOffset		#Load offset
 	add		$a1, $a1, $t0		#Add
 	li		$a2, 7			#Color
-	jal		getNextX
-	jal		getNextY
 	sw		$a0, 4($sp)		#Store $ra on element 4 of stack
 	sw		$a1, 8($sp)		#Store $ra on element 4 of stack
 	jal		drawDot
-	
-	#Move Done
-	moveDone:
 	
 	#Pause
 	li		$a0, 50			#Sleep for 500ms
@@ -297,6 +340,49 @@ spawnBall:
 	#RESTORE $RA
 	lw		$ra, 0($sp)		#Restore $ra from stack
 	addi		$sp, $sp, 4		#Readjust stack
+	
+	#Return
+	jr		$ra
+	
+#Procedure: calcYWall
+#Calculates Y reflection of wall
+#$a0 = x
+#$a1 = y		
+calcYWall:
+	#Check Direction
+	lw		$t0, yDirection
+	beq		$t0, 1, reflectUp
+	beq		$t0, -1, reflectDown
+
+	#Up
+	reflectUp:
+	#Change Direction
+	li		$t0, -1
+	sw		$t0, yDirection
+	#Flip Sign of offset
+	lw		$t0, yOffset
+	mul		$t0, $t0, -1
+	sw		$t0, yOffset
+	
+	#Reset Collision
+	li		$t1, 0				#Collision
+	sw		$t1, collision			#Store collision
+	
+	#Return
+	jr		$ra
+	
+	reflectDown:
+	#Change Direction
+	li		$t0, 1
+	sw		$t0, yDirection
+	#Flip Sign of offset
+	lw		$t0, yOffset
+	mul		$t0, $t0, -1
+	sw		$t0, yOffset
+	
+	#Reset Collision
+	li		$t1, 0				#Collision
+	sw		$t1, collision			#Store collision
 	
 	#Return
 	jr		$ra
@@ -314,55 +400,10 @@ checkCollision:
 	
 	#Check if white or black
 	beqz  	 	$t2, noCollision
-	
-	#Check Collision Side and Switch Ball Direction
-	lw		$t1, xDirection			#Load Direction
-	beqz		$t1, collisionLeft		#Branch if collision is on the left
-	
-	#Right
 	li		$t1, 1				#Collision
-	sw		$t1, collision			#Store collision
-	li		$t0, 0				#Change Ball Direction
-	sw		$t0, xDirection			#Store direction
-	jal		calcY
-	
+	sw		$t1, collision			#Store collision	
 	lw		$ra, 0($sp)			#Restore $ra from stack
 	addi		$sp, $sp, 4			#Readjust stack
-	jr		$ra
-
-	#Left
-	collisionLeft:
-	li		$t1, 1				#Collision
-	sw		$t1, collision			#Store collision
-	li		$t0, 1				#Change Ball Direction
-	sw		$t0, xDirection			#Store Ball Direction
-	jal		calcY
-	
-	lw		$ra, 0($sp)			#Restore $ra from stack
-	addi		$sp, $sp, 4			#Readjust stack
-	jr		$ra
-	
-	doY2:
-	#Y Collision
-	lw		$t0, yDirection
-	beq		$t0, 1, upY2
-	beq		$t0, 0,	downY2
-	
-	#Up
-	upY2:
-	li		$t0, -1
-	sw		$t0, yDirection
-	addi		$a1, $a1, 1		#Decrement y by 1
-	jr		$ra
-	
-	#Down
-	downY2:
-	li		$t0, 1
-	sw		$t0, yDirection
-	addi		$a1, $a1, -1		#Increment y by 1
-	
-	lw		$ra, 0($sp)		#Restore $ra from stack
-	addi		$sp, $sp, 4		#Readjust stack
 	jr		$ra
 	
 	noCollision:	
@@ -403,10 +444,14 @@ calcY:
 	bgt		$s0, 7, ySlightBottom
 	beq 		$s0, 7, yStraight
 	bgt		$s0, 3, ySlightTop
+	
 	#Hit Far Top
 	lw		$a1, 8($sp)		#Store $ra on element 4 of stack
 	li		$t0, -2
+	li		$t1, 1
+	sw		$t1, yDirection
 	sw		$t0, yOffset
+	
 	
 	#RESTORE $RA
 	lw		$a0, 4($sp)		#Store $ra on element 4 of stack
@@ -418,6 +463,8 @@ calcY:
 	yStraight:
 	lw		$a0, 4($sp)		#Store $ra on element 4 of stack
 	lw		$a1, 8($sp)		#Store $ra on element 4 of stack
+	li		$t1, 0
+	sw		$t1, yDirection
 	
 	#RESTORE $RA
 	lw		$ra, 0($sp)		#Restore $ra from stack
@@ -428,6 +475,8 @@ calcY:
 	ySlightTop:
 	lw		$a0, 4($sp)		#Store $ra on element 4 of stack
 	lw		$a1, 8($sp)		#Store $ra on element 4 of stack
+	li		$t1, 1
+	sw		$t1, yDirection
 	li		$t0, -1
 	sw		$t0, yOffset
 	
@@ -440,6 +489,8 @@ calcY:
 	ySlightBottom:
 	lw		$a0, 4($sp)		#Store $ra on element 4 of stack
 	lw		$a1, 8($sp)		#Store $ra on element 4 of stack
+	li		$t1, -1
+	sw		$t1, yDirection
 	li		$t0, 1
 	sw		$t0, yOffset
 	
@@ -452,6 +503,8 @@ calcY:
 	yFarBottom:
 	lw		$a0, 4($sp)		#Store $ra on element 4 of stack
 	lw		$a1, 8($sp)		#Store $ra on element 4 of stack
+	li		$t1, -1
+	sw		$t1, yDirection
 	li		$t0, 2
 	sw		$t0, yOffset
 	
@@ -465,16 +518,9 @@ calcY:
 #$a0 = x
 getNextX:
 	#Check X Direction
-	lw		$t0, xDirection
-	beq		$t0, 0, rightX
-	beq		$t0, 1,	leftX
+	lw		$t0, xOffset
+	add		$a0, $a0, $t0
 	
-	rightX:
-	addi		$a0, $a0, 1		#Increment x by 1
-	jr		$ra
-	
-	leftX:
-	addi		$a0, $a0, -1		#Decrement x by 1
 	jr		$ra
 
 #Procedure: checkNextY
@@ -488,15 +534,14 @@ getNextY:
 	beq		$t0, -1,downY
 	
 	upY:
-	addi		$a1, $a1, 1		#Increment y by 1
+	addi		$a1, $a1, -1		#Increment y by 2
 	jr		$ra
 	
 	downY:
-	addi		$a1, $a1, -1		#Decrement y by 1
+	addi		$a1, $a1, 1		#Decrement y by 2
 	jr		$ra
 	
 	straightY:
-	addi		$a1, $a1, 0		#Decrement y by 1
 	jr		$ra
 	
 
