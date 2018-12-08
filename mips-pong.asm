@@ -41,6 +41,10 @@
 	xOffset:		.word	1
 	yOffset:		.word	0
 	
+	#Paddles
+	paddleX:			.word	0
+	paddleY:			.word	0
+	
 .text
 main:
 	#STACK
@@ -49,7 +53,9 @@ main:
 ########################################## SETUP	
 	#Draw Paddle 1
 	li		$a0, 1
+	sw		$a0, paddleX
 	li		$a1, 32
+	sw		$a1, paddleY
 	li		$a2, 7
 	li		$a3, 15
 	jal		drawVertLine
@@ -105,7 +111,7 @@ main:
 ########################################## START GAME
 	#Spawn Ball
 	jal		spawnBall
-
+	jal		getInput
 
 	#EXIT
 	exit:
@@ -334,8 +340,29 @@ spawnBall:
 	li		$v0, 32			#Load syscall for sleep
 	syscall					#Execute
 	
+	#Check Input
+	jal		getInput	
+	beqz		$v0, skipInput
+	beq		$v0, 119, moveUp	#If input is w, move paddle up
+	beq		$v0, 115, moveDown	#If input is s, move paddle up
+	j		skipInput
+
+	#Move Paddle Up
+	moveUp:
+	#PRINT INTRO
+	li		$a0, 0			#Set $a0 to move up
+	jal		movePaddle
+	j		skipInput
+	
+	#Move Paddle Down
+	moveDown:
+	li		$a0, 1			#Set $a0 to move down
+	jal		movePaddle
+	j		skipInput
+	
+	skipInput:
 	#Loop
-	j	ballLoop
+	j		ballLoop
 	
 	#RESTORE $RA
 	lw		$ra, 0($sp)		#Restore $ra from stack
@@ -534,16 +561,73 @@ getNextY:
 	beq		$t0, -1,downY
 	
 	upY:
-	addi		$a1, $a1, -1		#Increment y by 2
+	addi		$a1, $a1, -2		#Increment y by 2
 	jr		$ra
 	
 	downY:
-	addi		$a1, $a1, 1		#Decrement y by 2
+	addi		$a1, $a1, 2		#Decrement y by 2
 	jr		$ra
 	
 	straightY:
 	jr		$ra
 	
+
+#Procedure: movePaddle
+#Allow player to move paddle up and down
+movePaddle:
+	#Stack
+	addi		$sp, $sp, -4		#Make room on stack for 1 words
+	sw		$ra, 0($sp)		#Store $ra on element 4 of stack
+	
+	#Check which direction to move
+	bnez		$a0, paddleDown
+	
+	#Up
+	#Erase Old Line
+	lw		$a0, paddleX
+	lw		$a1, paddleY
+	li		$a2, 0
+	li		$a3, 15
+	jal		drawVertLine
+	
+	#Draw New Line
+	lw		$a0, paddleX
+	lw		$a1, paddleY
+	addi		$a1, $a1, -1		#Increment Y
+	sw		$a0, paddleX
+	sw		$a1, paddleY
+	li		$a2, 7
+	li		$a3, 15
+	jal		drawVertLine
+	
+	#RESTORE $RA
+	lw		$ra, 0($sp)		#Restore $ra from stack
+	addi		$sp, $sp, 4		#Readjust stack
+	jr		$ra
+	
+	#Down
+	paddleDown:
+	#Erase Old Line
+	lw		$a0, paddleX
+	lw		$a1, paddleY
+	li		$a2, 0
+	li		$a3, 15
+	jal		drawVertLine
+	
+	#Draw New Line
+	lw		$a0, paddleX
+	lw		$a1, paddleY
+	addi		$a1, $a1, 1		#Increment Y
+	sw		$a0, paddleX
+	sw		$a1, paddleY
+	li		$a2, 7
+	li		$a3, 15
+	jal		drawVertLine
+	
+	#RESTORE $RA
+	lw		$ra, 0($sp)		#Restore $ra from stack
+	addi		$sp, $sp, 4		#Readjust stack
+	jr		$ra
 
 # OutText: display ascii characters on the bit mapped display
 # $a0 = horizontal pixel co-ordinate (0-63)
@@ -607,4 +691,40 @@ _text9:
         addiu   $sp, $sp, 24
         jr      $ra
 
-
+#Procedure: getChar
+#Poll the keypad, wait for input
+#$v0 = input or nothing
+getInput:
+	#MAKE ROOM ON STACK AND SAVE REGISTERS
+	addi		$sp, $sp, -4		#Make room on stack for 1 words
+	sw		$ra, 0($sp)		#Store $ra on element 0 of stack
+	li		$s2, 0			#Counter
+	j		check			#Skip first sleep
+	
+	#SLEEP
+	li		$a0, 100		#1 second sleep
+	li		$v0, 32			#Load syscall for sleep
+	syscall					#Execute
+	
+	#POLLING
+	check:
+	jal		isCharThere		#Jump and link to isCharThere
+	
+	leaveChar:
+	lui		$t0, 0xffff		#Register 0xffff0000
+	lw		$v0, 4($t0)		#Get control
+	sw		$0, 4($t0)		#Clear
+	
+	#RESTORE $RA
+	lw		$ra, 0($sp)		#Restore $ra from stack
+	addi		$sp, $sp, 4		#Readjust stack
+	jr		$ra
+	
+#Procedure: isCharThere
+#Poll the keypad, wait for input
+#v0 = 0 (no data) or 1 (char in buffer)
+isCharThere:
+	lui		$t0, 0xffff		#Register 0xffff0000
+	lw		$t1, 0($t0)		#Get control
+	and		$v0, $t1, 1		#Look at least significent bit
+	jr		$ra
