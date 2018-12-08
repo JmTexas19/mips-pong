@@ -18,8 +18,6 @@
 				.word	0xffff00	#Green-Red
 				.word	0xffffff	#White
 	
-	
-	
 .text
 main:
 	#STACK
@@ -41,6 +39,18 @@ main:
 	li		$a2, 7
 	li		$a3, 15
 	jal		drawVertLine
+	
+	#Draw Walls
+	li		$a0, 0
+	li		$a1, 8
+	li		$a2, 7
+	li		$a3, 64
+	jal		drawHorzLine
+	li		$a0, 0
+	li		$a1, 56
+	li		$a2, 7
+	li		$a3, 64
+	jal		drawHorzLine
 
 	#EXIT
 	exit:
@@ -172,3 +182,8 @@ drawVertLine:
 	addi		$sp, $sp, 16		#Readjust stack
 	
 	jr		$ra			#Return
+	
+#Procedure: spawnBall
+#Spawns the ball in the middle of the playfield
+
+
