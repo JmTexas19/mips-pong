@@ -5,7 +5,7 @@
 .data
 	#STACK
 	stack_beg:
-       				.word   0 : 40
+       				.word   0 : 80
 	stack_end:
 	
 	#COLOR TABLE
@@ -35,7 +35,10 @@
 	digit4:			.asciiz "4"
 	
 	#Ball
-	ballDirection:		.word 	0	
+	xDirection:		.word 	0	
+	yDirection:		.word 	0	
+	collision:		.word	0
+	yOffset:		.word	0
 	
 .text
 main:
@@ -52,7 +55,7 @@ main:
 	
 	#Draw Paddle 2
 	li		$a0, 62
-	li		$a1, 32
+	li		$a1, 33
 	li		$a2, 7
 	li		$a3, 15
 	jal		drawVertLine
@@ -60,6 +63,13 @@ main:
 	#Draw Walls
 	li		$a0, 0
 	li		$a1, 16
+	li		$a2, 7
+	li		$a3, 64
+	jal		drawHorzLine
+	
+	#Draw Walls
+	li		$a0, 0
+	li		$a1, 63
 	li		$a2, 7
 	li		$a3, 64
 	jal		drawHorzLine
@@ -86,7 +96,7 @@ main:
 	exit:
 	li		$v0, 17			#Load exit call
 	syscall					#Execute
-
+########################################## START GAME
 
 #Procedure: drawDot:
 #Draw a dot on the bitmap display
@@ -122,6 +132,10 @@ drawDot:
 #$a1 = y coordinate (0-31)
 #$v0 = memory address
 calculateAddress:
+	#Stack
+	addi		$sp, $sp, -4		#Make room on stack for 1 wo
+	sw		$ra, 0($sp)		#Store $ra on element 4 of stack
+
 	#CALCULATIONS
 	sll		$a0, $a0, 2		#Multiply $a0 by 4
 	sll		$a1, $a1, 5		#Multiply $a1 by 256
@@ -129,6 +143,8 @@ calculateAddress:
 	add		$a0, $a0, $a1		#Add $a1 to $a0
 	addi		$v0, $a0, 0x10040000	#Add base address for display + $a0 to $v0
 	
+	lw		$ra, 0($sp)		#Restore $ra from stack
+	addi		$sp, $sp, 4		#Readjust stack
 	jr		$ra			#Return
 	
 #Procedure: getColour:
@@ -242,15 +258,27 @@ spawnBall:
 	#Check Collision
 	lw		$a0, 4($sp)		#X
 	lw		$a1, 8($sp)		#Y
-	jal		getNextCoordinates
-	jal		calculateAddress	#Get ball position address
+	jal		getNextX
 	jal		checkCollision
-
-	#Move Right
+	jal		getNextY
+	jal		checkCollision
+	jal		calculateAddress	#Get ball position address
+	
+	#Check Collision
 	lw		$a0, 4($sp)		#X
 	lw		$a1, 8($sp)		#Y
+	jal		getNextX
+	jal		getNextY
+	jal		checkCollision
+
+	#Move
+	lw		$a0, 4($sp)		#X
+	lw		$a1, 8($sp)		#Y
+	lw		$t0, yOffset		#Load offset
+	add		$a1, $a1, $t0		#Add
 	li		$a2, 7			#Color
-	jal		getNextCoordinates
+	jal		getNextX
+	jal		getNextY
 	sw		$a0, 4($sp)		#Store $ra on element 4 of stack
 	sw		$a1, 8($sp)		#Store $ra on element 4 of stack
 	jal		drawDot
@@ -276,8 +304,11 @@ spawnBall:
 #Procedure: checkCollision
 #Checks if collision 
 checkCollision:
+	#Stack
+	addi		$sp, $sp, -4		#Make room on stack for 1 words
+	sw		$ra, 0($sp)		#Store $ra on element 4 of stack
+
 	#Get Ball Address Color
-	li		$t0, 16711680			#Red
 	lw		$t1, 0($v0)			#Get color of ball position
 	move		$t2, $t1			#Copy because broken stuff
 	
@@ -285,39 +316,188 @@ checkCollision:
 	beqz  	 	$t2, noCollision
 	
 	#Check Collision Side and Switch Ball Direction
-	lw		$t1, ballDirection		#Load Direction
+	lw		$t1, xDirection			#Load Direction
 	beqz		$t1, collisionLeft		#Branch if collision is on the left
+	
+	#Right
+	li		$t1, 1				#Collision
+	sw		$t1, collision			#Store collision
 	li		$t0, 0				#Change Ball Direction
-	sw		$t0, ballDirection		#Store direction
-	jr		$ra				#Return	
+	sw		$t0, xDirection			#Store direction
+	jal		calcY
+	
+	lw		$ra, 0($sp)			#Restore $ra from stack
+	addi		$sp, $sp, 4			#Readjust stack
+	jr		$ra
 
-	#Collision on left
+	#Left
 	collisionLeft:
+	li		$t1, 1				#Collision
+	sw		$t1, collision			#Store collision
 	li		$t0, 1				#Change Ball Direction
-	sw		$t0, ballDirection		
-	jr		$ra		
+	sw		$t0, xDirection			#Store Ball Direction
+	jal		calcY
+	
+	lw		$ra, 0($sp)			#Restore $ra from stack
+	addi		$sp, $sp, 4			#Readjust stack
+	jr		$ra
+	
+	doY2:
+	#Y Collision
+	lw		$t0, yDirection
+	beq		$t0, 1, upY2
+	beq		$t0, 0,	downY2
+	
+	#Up
+	upY2:
+	li		$t0, -1
+	sw		$t0, yDirection
+	addi		$a1, $a1, 1		#Decrement y by 1
+	jr		$ra
+	
+	#Down
+	downY2:
+	li		$t0, 1
+	sw		$t0, yDirection
+	addi		$a1, $a1, -1		#Increment y by 1
+	
+	lw		$ra, 0($sp)		#Restore $ra from stack
+	addi		$sp, $sp, 4		#Readjust stack
+	jr		$ra
 	
 	noCollision:	
 	#Return
-	jr		$ra		
-
-#Procedure: checkCollision
-#Calculates next coordinates for ball
+	lw		$ra, 0($sp)		#Restore $ra from stack
+	addi		$sp, $sp, 4		#Readjust stack
+	jr		$ra	
+	
+#Procedure: calcY
+#Calculates Y offset and direction based on paddle collision
 #$a0 = x
-#$a1 = y
-getNextCoordinates:
-	#Check Direction
-	lw		$t0, ballDirection
+#$a1 = y		
+calcY:
+	#Stack
+	addi		$sp, $sp, -12		#Make room on stack for 1 words
+	sw		$ra, 0($sp)		#Store $ra on element 4 of stack
+	sw		$a0, 4($sp)		#Store $ra on element 4 of stack
+	sw		$a1, 8($sp)		#Store $ra on element 4 of stack
+	
+	li		$v0, 0
+	jal		calculateAddress	#Get Memory address of current position
+	addi		$v0, $v0, -256		#Increment Address by 1 in y direction
+
+	#Calculate direction of y
+	li		$s0, 0			#Counter for paddles
+	yLoop:
+	addi		$s0, $s0, 1		#Increment Address by 1 in y direction
+	
+	#Increment Address
+	addi		$v0, $v0, -256		#Increment Address by 1 in y direction
+	lw		$t1, 0($v0)		#Get color of ball position
+	move		$t2, $t1		#Copy because broken stuff
+	beqz		$t2, finishCalcLoop
+	j		yLoop
+	
+	finishCalcLoop:
+	bgt		$s0, 11,yFarBottom
+	bgt		$s0, 7, ySlightBottom
+	beq 		$s0, 7, yStraight
+	bgt		$s0, 3, ySlightTop
+	#Hit Far Top
+	lw		$a1, 8($sp)		#Store $ra on element 4 of stack
+	li		$t0, -2
+	sw		$t0, yOffset
+	
+	#RESTORE $RA
+	lw		$a0, 4($sp)		#Store $ra on element 4 of stack
+	lw		$ra, 0($sp)		#Restore $ra from stack
+	addi		$sp, $sp, 12		#Readjust stack
+	jr		$ra
+	
+	#Hit Middle
+	yStraight:
+	lw		$a0, 4($sp)		#Store $ra on element 4 of stack
+	lw		$a1, 8($sp)		#Store $ra on element 4 of stack
+	
+	#RESTORE $RA
+	lw		$ra, 0($sp)		#Restore $ra from stack
+	addi		$sp, $sp, 12		#Readjust stack
+	jr		$ra
+	
+	#Hit Top
+	ySlightTop:
+	lw		$a0, 4($sp)		#Store $ra on element 4 of stack
+	lw		$a1, 8($sp)		#Store $ra on element 4 of stack
+	li		$t0, -1
+	sw		$t0, yOffset
+	
+	#RESTORE $RA
+	lw		$ra, 0($sp)		#Restore $ra from stack
+	addi		$sp, $sp, 12		#Readjust stack
+	jr		$ra
+	
+	#Hit Bottom
+	ySlightBottom:
+	lw		$a0, 4($sp)		#Store $ra on element 4 of stack
+	lw		$a1, 8($sp)		#Store $ra on element 4 of stack
+	li		$t0, 1
+	sw		$t0, yOffset
+	
+	#RESTORE $RA
+	lw		$ra, 0($sp)		#Restore $ra from stack
+	addi		$sp, $sp, 12		#Readjust stack
+	jr		$ra
+	
+	#Hit Far Bottom
+	yFarBottom:
+	lw		$a0, 4($sp)		#Store $ra on element 4 of stack
+	lw		$a1, 8($sp)		#Store $ra on element 4 of stack
+	li		$t0, 2
+	sw		$t0, yOffset
+	
+	#RESTORE $RA
+	lw		$ra, 0($sp)		#Restore $ra from stack
+	addi		$sp, $sp, 12		#Readjust stack
+	jr		$ra
+
+#Procedure: getNextX
+#Calculates next coordinates for X
+#$a0 = x
+getNextX:
+	#Check X Direction
+	lw		$t0, xDirection
 	beq		$t0, 0, rightX
 	beq		$t0, 1,	leftX
 	
 	rightX:
 	addi		$a0, $a0, 1		#Increment x by 1
-	jr		$ra			#Return
+	jr		$ra
 	
 	leftX:
 	addi		$a0, $a0, -1		#Decrement x by 1
-	jr		$ra			#Return
+	jr		$ra
+
+#Procedure: checkNextY
+#Calculates next coordinates for Y
+#$a1 = y
+getNextY:
+	#Check Y Direction
+	lw		$t0, yDirection
+	beq		$t0, 1, upY
+	beq		$t0, 0, straightY
+	beq		$t0, -1,downY
+	
+	upY:
+	addi		$a1, $a1, 1		#Increment y by 1
+	jr		$ra
+	
+	downY:
+	addi		$a1, $a1, -1		#Decrement y by 1
+	jr		$ra
+	
+	straightY:
+	addi		$a1, $a1, 0		#Decrement y by 1
+	jr		$ra
 	
 
 # OutText: display ascii characters on the bit mapped display
