@@ -34,11 +34,15 @@
 	digit3:			.asciiz "3"
 	digit4:			.asciiz "4"
 	
+	#Saved Address
+	ballAddress:		.word 	0		
+	
 .text
 main:
 	#STACK
 	la		$sp, stack_end
 	
+########################################## SETUP	
 	#Draw Paddle 1
 	li		$a0, 1
 	li		$a1, 32
@@ -71,6 +75,12 @@ main:
 	li		$a1, 2
 	la		$a2, digit0
 	jal		outText
+########################################## SETUP	
+
+########################################## START GAME
+	#Spawn Ball
+	jal		spawnBall
+
 
 	#EXIT
 	exit:
@@ -205,10 +215,57 @@ drawVertLine:
 	
 #Procedure: spawnBall
 #Spawns the ball in the middle of the playfield
-
-
-
-
+spawnBall:
+	#Ball Coordinates
+	li		$a0, 31			#X
+	li		$a1, 39			#Y
+	
+	#Stack
+	addi		$sp, $sp, -12		#Make room on stack for 1 words
+	sw		$ra, 0($sp)		#Store $ra on element 4 of stack
+	sw		$a0, 4($sp)		#Store $ra on element 4 of stack
+	sw		$a1, 8($sp)		#Store $ra on element 4 of stack
+	
+	#Draw Ball
+	li		$a2, 7			#Color
+	jal		drawDot			#Jump
+	
+	#Start Ball Movement
+	ballLoop:
+	#Get Ball Address
+	lw		$a0, 4($sp)		#X
+	lw		$a1, 8($sp)		#Y
+	jal		calculateAddress
+	sw		$v0, ballAddress
+	
+	#Delete Old Ball Position
+	lw		$a0, 4($sp)		#X
+	lw		$a1, 8($sp)		#Y
+	li		$a2, 0			#Color
+	jal		drawDot
+	
+	#Move Ball
+	lw		$a0, 4($sp)		#X
+	lw		$a1, 8($sp)		#Y
+	li		$a2, 7			#Color
+	addi		$a0, $a0, 1		#Increment x by 1
+	sw		$a0, 4($sp)		#Store $ra on element 4 of stack
+	sw		$a1, 8($sp)		#Store $ra on element 4 of stack
+	jal		drawDot
+	
+	#Pause
+	li		$a0, 100		#Sleep for 500ms
+	li		$v0, 32			#Load syscall for sleep
+	syscall					#Execute
+	
+	j		ballLoop	
+	
+	#RESTORE $RA
+	lw		$ra, 0($sp)		#Restore $ra from stack
+	addi		$sp, $sp, 4		#Readjust stack
+	
+	#Return
+	jr		$ra
 
 
 
