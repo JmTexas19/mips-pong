@@ -581,7 +581,8 @@ movePaddle:
 	
 	#Check which direction to move
 	bnez		$a0, paddleDown
-	
+		
+	bge 		$s3, 5, skipMove	#Max Movement Counter
 	#Up
 	#Erase Old Line
 	lw		$a0, paddleX
@@ -593,12 +594,13 @@ movePaddle:
 	#Draw New Line
 	lw		$a0, paddleX
 	lw		$a1, paddleY
-	addi		$a1, $a1, -1		#Increment Y
+	addi		$a1, $a1, -3		#Increment Y
 	sw		$a0, paddleX
 	sw		$a1, paddleY
 	li		$a2, 7
 	li		$a3, 15
 	jal		drawVertLine
+	addi		$s3, $s3, 1
 	
 	#RESTORE $RA
 	lw		$ra, 0($sp)		#Restore $ra from stack
@@ -607,6 +609,8 @@ movePaddle:
 	
 	#Down
 	paddleDown:
+	
+	ble  		$s3, -5, skipMove	#Max Movement Counter
 	#Erase Old Line
 	lw		$a0, paddleX
 	lw		$a1, paddleY
@@ -617,13 +621,15 @@ movePaddle:
 	#Draw New Line
 	lw		$a0, paddleX
 	lw		$a1, paddleY
-	addi		$a1, $a1, 1		#Increment Y
+	addi		$a1, $a1, 3		#Increment Y
 	sw		$a0, paddleX
 	sw		$a1, paddleY
 	li		$a2, 7
 	li		$a3, 15
 	jal		drawVertLine
+	addi		$s3, $s3, -1
 	
+	skipMove:
 	#RESTORE $RA
 	lw		$ra, 0($sp)		#Restore $ra from stack
 	addi		$sp, $sp, 4		#Readjust stack
