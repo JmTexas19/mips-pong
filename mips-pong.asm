@@ -17,40 +17,60 @@
 				.word	0xff00ff	#Blue-Red
 				.word	0xffff00	#Green-Red
 				.word	0xffffff	#White
+
+	#DigitTable			
+	DigitTable:
+        .byte   ' ', 0,0,0,0,0,0,0,0,0,0,0,0
+        .byte   '0', 0x7e,0xff,0xc3,0xc3,0xc3,0xc3,0xc3,0xc3,0xc3,0xc3,0xff,0x7e
+        .byte   '1', 0x38,0x78,0xf8,0x18,0x18,0x18,0x18,0x18,0x18,0x18,0x18,0x18
+        .byte   '2', 0x7e,0xff,0x83,0x06,0x0c,0x18,0x30,0x60,0xc0,0xc1,0xff,0x7e
+        .byte   '3', 0x7e,0xff,0x83,0x03,0x03,0x1e,0x1e,0x03,0x03,0x83,0xff,0x7e
+        .byte   '4', 0xc3,0xc3,0xc3,0xc3,0xc3,0xff,0x7f,0x03,0x03,0x03,0x03,0x03
+        
+        #Digits
+        digit0:			.asciiz "0"
+        digit1:			.asciiz "1"
+	digit2:			.asciiz "2"
+	digit3:			.asciiz "3"
+	digit4:			.asciiz "4"
 	
 .text
 main:
 	#STACK
 	la		$sp, stack_end
 	
-	#X and Y Coordinates = 0-63
-	#Color = 0-7
-	
 	#Draw Paddle 1
 	li		$a0, 1
-	li		$a1, 24
+	li		$a1, 32
 	li		$a2, 7
 	li		$a3, 15
 	jal		drawVertLine
 	
 	#Draw Paddle 2
 	li		$a0, 62
-	li		$a1, 24
+	li		$a1, 32
 	li		$a2, 7
 	li		$a3, 15
 	jal		drawVertLine
 	
 	#Draw Walls
 	li		$a0, 0
-	li		$a1, 8
+	li		$a1, 16
 	li		$a2, 7
 	li		$a3, 64
 	jal		drawHorzLine
-	li		$a0, 0
-	li		$a1, 56
-	li		$a2, 7
-	li		$a3, 64
-	jal		drawHorzLine
+	
+	#Draw Score P1
+	li		$a0, 1
+	li		$a1, 2
+	la		$a2, digit0
+	jal		outText
+	
+	#Draw Score P2
+	li		$a0, 53
+	li		$a1, 2
+	la		$a2, digit0
+	jal		outText
 
 	#EXIT
 	exit:
@@ -185,5 +205,73 @@ drawVertLine:
 	
 #Procedure: spawnBall
 #Spawns the ball in the middle of the playfield
+
+
+
+
+
+
+
+# OutText: display ascii characters on the bit mapped display
+# $a0 = horizontal pixel co-ordinate (0-63)
+# $a1 = vertical pixel co-ordinate (0-63)
+# $a2 = pointer to asciiz text (to be displayed)
+outText:
+        addiu   $sp, $sp, -24
+        sw      $ra, 20($sp)
+
+        li      $t8, 1          # line number in the digit array (1-12)
+_text1:
+        la      $t9, 0x10040000 # get the memory start address
+        sll     $t0, $a0, 2     # assumes mars was configured as 256 x 256
+        addu    $t9, $t9, $t0   # and 1 pixel width, 1 pixel height
+        sll     $t0, $a1, 8    # (a0 * 4) + (a1 * 4 * 256)
+        addu    $t9, $t9, $t0   # t9 = memory address for this pixel
+
+        move    $t2, $a2        # t2 = pointer to the text string
+_text2:
+        lb      $t0, 0($t2)     # character to be displayed
+        addiu   $t2, $t2, 1     # last character is a null
+        beq     $t0, $zero, _text9
+
+        la      $t3, DigitTable # find the character in the table
+_text3:
+        lb      $t4, 0($t3)     # get an entry from the table
+        beq     $t4, $t0, _text4
+        beq     $t4, $zero, _text4
+        addiu   $t3, $t3, 13    # go to the next entry in the table
+        j       _text3
+_text4:
+        addu    $t3, $t3, $t8   # t8 is the line number
+        lb      $t4, 0($t3)     # bit map to be displayed
+
+        sw      $zero, 0($t9)   # first pixel is black
+        addiu   $t9, $t9, 4
+
+        li      $t5, 8          # 8 bits to go out
+_text5:
+        li      $t7, 0x000000
+        andi    $t6, $t4, 0x80  # mask out the bit (0=black, 1=white)
+        beq     $t6, $zero, _text6
+        li      $t7, 0xffffff
+_text6:
+        sw      $t7, 0($t9)     # write the pixel color
+        addiu   $t9, $t9, 4     # go to the next memory position
+        sll     $t4, $t4, 1     # and line number
+        addiu   $t5, $t5, -1    # and decrement down (8,7,...0)
+        bne     $t5, $zero, _text5
+
+        sw      $zero, 0($t9)   # last pixel is black
+        addiu   $t9, $t9, 4
+        j       _text2          # go get another character
+
+_text9:
+        addiu   $a1, $a1, 1     # advance to the next line
+        addiu   $t8, $t8, 1     # increment the digit array offset (1-12)
+        bne     $t8, 13, _text1
+
+        lw      $ra, 20($sp)
+        addiu   $sp, $sp, 24
+        jr      $ra
 
 
