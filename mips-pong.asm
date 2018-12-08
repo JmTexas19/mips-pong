@@ -232,12 +232,6 @@ spawnBall:
 	
 	#Start Ball Movement
 	ballLoop:
-	#Check Collision
-	lw		$a0, 4($sp)		#X
-	lw		$a1, 8($sp)		#Y
-	addi		$a0, $a0, 1
-	jal	calculateAddress		#Get ball position address
-	jal	checkCollision
 	
 	#Delete Old Ball Position
 	lw		$a0, 4($sp)		#X
@@ -245,17 +239,27 @@ spawnBall:
 	li		$a2, 0			#Color
 	jal		drawDot
 	
-	#Move Ball
+	#Check Collision
+	lw		$a0, 4($sp)		#X
+	lw		$a1, 8($sp)		#Y
+	jal		getNextCoordinates
+	jal		calculateAddress	#Get ball position address
+	jal		checkCollision
+
+	#Move Right
 	lw		$a0, 4($sp)		#X
 	lw		$a1, 8($sp)		#Y
 	li		$a2, 7			#Color
-	addi		$a0, $a0, 1		#Increment x by 1
+	jal		getNextCoordinates
 	sw		$a0, 4($sp)		#Store $ra on element 4 of stack
 	sw		$a1, 8($sp)		#Store $ra on element 4 of stack
 	jal		drawDot
 	
+	#Move Done
+	moveDone:
+	
 	#Pause
-	li		$a0, 100		#Sleep for 500ms
+	li		$a0, 50			#Sleep for 500ms
 	li		$v0, 32			#Load syscall for sleep
 	syscall					#Execute
 	
@@ -273,20 +277,48 @@ spawnBall:
 #Checks if collision 
 checkCollision:
 	#Get Ball Address Color
-	li	$t0, 16711680			#Red
-	lw	$t1, 0($v0)			#Get color of ball position
-	move	$t2, $t1			#Copy because broken stuff
+	li		$t0, 16711680			#Red
+	lw		$t1, 0($v0)			#Get color of ball position
+	move		$t2, $t1			#Copy because broken stuff
 	
 	#Check if white or black
-	beqz   	$t2, noCollision
-	sw	$t0, -16($v0)
+	beqz  	 	$t2, noCollision
 	
-	noCollision:
+	#Check Collision Side and Switch Ball Direction
+	lw		$t1, ballDirection		#Load Direction
+	beqz		$t1, collisionLeft		#Branch if collision is on the left
+	li		$t0, 0				#Change Ball Direction
+	sw		$t0, ballDirection		#Store direction
+	jr		$ra				#Return	
+
+	#Collision on left
+	collisionLeft:
+	li		$t0, 1				#Change Ball Direction
+	sw		$t0, ballDirection		
+	jr		$ra		
+	
+	noCollision:	
 	#Return
 	jr		$ra		
 
-
-
+#Procedure: checkCollision
+#Calculates next coordinates for ball
+#$a0 = x
+#$a1 = y
+getNextCoordinates:
+	#Check Direction
+	lw		$t0, ballDirection
+	beq		$t0, 0, rightX
+	beq		$t0, 1,	leftX
+	
+	rightX:
+	addi		$a0, $a0, 1		#Increment x by 1
+	jr		$ra			#Return
+	
+	leftX:
+	addi		$a0, $a0, -1		#Decrement x by 1
+	jr		$ra			#Return
+	
 
 # OutText: display ascii characters on the bit mapped display
 # $a0 = horizontal pixel co-ordinate (0-63)
