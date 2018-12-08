@@ -42,8 +42,12 @@
 	yOffset:		.word	0
 	
 	#Paddles
-	paddleX:			.word	0
-	paddleY:			.word	0
+	paddleX:		.word	0
+	paddleY:		.word	0
+	
+	#Score
+	pScore:			.word	0
+	aiScore:			.word	0
 	
 .text
 main:
@@ -62,7 +66,7 @@ main:
 	
 	#Draw Paddle 2
 	li		$a0, 62
-	li		$a1, 29
+	li		$a1, 32
 	li		$a2, 7
 	li		$a3, 15
 	jal		drawVertLine
@@ -95,17 +99,9 @@ main:
 	li		$a3, 64
 	jal		drawHorzLine
 	
-	#Draw Score P1
-	li		$a0, 1
-	li		$a1, 2
-	la		$a2, digit0
-	jal		outText
-	
-	#Draw Score P2
-	li		$a0, 53
-	li		$a1, 2
-	la		$a2, digit0
-	jal		outText
+	#Draw Score
+	jal		drawScore
+
 ########################################## SETUP	
 
 ########################################## START GAME
@@ -118,6 +114,78 @@ main:
 	li		$v0, 17			#Load exit call
 	syscall					#Execute
 ########################################## START GAME
+
+#Procedure: drawScore:
+#Draw the score for the players
+drawScore:
+	#Stack
+	addi		$sp, $sp, -4		#Make room on stack for 1 wo
+	sw		$ra, 0($sp)		#Store $ra on element 4 of stack
+	
+	#Score Branches
+	lw		$t0, pScore
+	li		$a0, 1
+	li		$a1, 2
+	
+	beq		$t0, 0, drawdigit0
+	beq		$t0, 1, drawdigit1
+	beq		$t0, 2, drawdigit2
+	beq		$t0, 3, drawdigit3
+	
+	#Draw Score P1
+	drawdigit0:
+	la		$a2, digit0
+	jal		outText
+	j		aiDrawScore
+	
+	drawdigit1:
+	la		$a2, digit1
+	jal		outText
+	j		aiDrawScore
+	
+	drawdigit2:
+	la		$a2, digit2
+	jal		outText
+	j		aiDrawScore
+	
+	drawdigit3:
+	la		$a2, digit3
+	jal		outText
+	j		aiDrawScore
+	
+	#Draw Score AI
+	aiDrawScore:
+	lw		$t1, aiScore
+	li		$a0, 52
+	li		$a1, 2
+	beq		$t1, 0, drawaidigit0
+	beq		$t1, 1, drawaidigit1
+	beq		$t1, 2, drawaidigit2
+	beq		$t1, 3, drawaidigit3
+	
+	drawaidigit0:
+	la		$a2, digit0
+	jal		outText
+	j		doneScore
+	
+	drawaidigit1:
+	la		$a2, digit1
+	jal		outText
+	j		doneScore
+	
+	drawaidigit2:
+	la		$a2, digit2
+	jal		outText
+	j		doneScore
+	
+	drawaidigit3:
+	la		$a2, digit3
+	jal		outText
+	
+	doneScore:
+	lw		$ra, 0($sp)		#Restore $ra from stack
+	addi		$sp, $sp, 4		#Readjust stack
+	jr		$ra			#Return
 
 #Procedure: drawDot:
 #Draw a dot on the bitmap display
@@ -548,6 +616,8 @@ getNextX:
 	lw		$t0, xOffset
 	add		$a0, $a0, $t0
 	
+	ble 		$a0, 0, endRound		#If ball reaches edge, end round
+	bge 		$a0, 63, endRound		#If ball reaches edge, end round
 	jr		$ra
 
 #Procedure: checkNextY
@@ -570,6 +640,52 @@ getNextY:
 	
 	straightY:
 	jr		$ra
+	
+#Procedure: endRound
+#endRound and Increment Point
+endRound:	
+	ble 		$a0, 0, incrementAI
+	
+	#Add P Point
+	#Clear Paddles
+	li		$a0, 1
+	li		$a1, 18
+	li		$a2, 0
+	li		$a3, 40
+	jal		drawVertLine
+	li		$a0, 62
+	li		$a1, 18
+	li		$a2, 0
+	li		$a3, 40
+	jal		drawVertLine
+	li		$s3, 0		#Reset Paddle Counter
+	
+	#Increment Score
+	lw		$t0, pScore
+	addi		$t0, $t0, 1
+	sw		$t0, pScore
+	j		main
+	
+	#Add Ai Point
+	incrementAI:
+	#Clear Paddles
+	li		$a0, 1
+	li		$a1, 18
+	li		$a2, 0
+	li		$a3, 40
+	jal		drawVertLine
+	li		$a0, 62
+	li		$a1, 18
+	li		$a2, 0
+	li		$a3, 40
+	jal		drawVertLine
+	li		$s3, 0		#Reset Paddle Counter
+	
+	#Increment Score
+	lw		$t0, aiScore
+	addi		$t0, $t0, 1
+	sw		$t0, aiScore
+	j		main
 	
 
 #Procedure: movePaddle
@@ -634,6 +750,47 @@ movePaddle:
 	lw		$ra, 0($sp)		#Restore $ra from stack
 	addi		$sp, $sp, 4		#Readjust stack
 	jr		$ra
+
+#Procedure: drawBox:
+#Draw a box on the bitmap display
+#$a0 = x coordinate (0-31)
+#$a1 = y coordinate (0-31)
+#$a2 = colour number (0-7)
+#$a3 = size of box (1-32)
+drawBox:
+	#MAKE ROOM ON STACK AND SAVE REGISTERS
+	addi		$sp, $sp, -24		#Make room on stack for 5 words
+	sw		$ra, 12($sp)		#Store $ra on element 4 of stack
+	sw		$a0, 0($sp)		#Store $a0 on element 0 of stack
+	sw		$a1, 4($sp)		#Store $a1 on element 1 of stack
+	sw		$a2, 8($sp)		#Store $a2 on element 2 of stack
+	sw		$a3, 20($sp)		#Store $a3 on element 5 of stack
+	move		$s0, $a3		#Copy $a3 to temp register
+	sw		$s0, 16($sp)		#Store $s0 on element 5 of stack
+	
+	boxLoop:
+	jal 		drawHorzLine		#Jump and link to drawHorzLine
+	
+	#RESTORE REGISTERS
+	lw		$a0, 0($sp)		#Restore $a0 from stack
+	lw		$a1, 4($sp)		#Restore $a1 from stack
+	lw		$a2, 8($sp)		#Restore $a2 from stack
+	lw		$a3, 20($sp)		#Restore $a3 from stack
+	lw		$s0, 16($sp)		#Restore $s0 from stack
+	
+	#INCREMENT VALUES
+	addi		$a1, $a1, 1		#Increment y by 1
+	sw		$a1, 4($sp)		#Store $a1 on element 1 of stack
+	addi		$s0, $s0, -1		#Decrement counter
+	sw		$s0, 16($sp)		#Store $s0 on element 5 of stack
+	bne		$s0, $0, boxLoop	#If length is not 0, loop
+	
+	#RESTORE $RA
+	lw		$ra, 12($sp)		#Restore $ra from stack
+	addi		$sp, $sp, 24		#Readjust stack
+	addi		$s0, $s0, 0		#Reset $s0
+	
+	jr		$ra			#Return
 
 # OutText: display ascii characters on the bit mapped display
 # $a0 = horizontal pixel co-ordinate (0-63)
