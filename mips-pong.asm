@@ -34,6 +34,13 @@ main:
 	li		$a2, 7
 	li		$a3, 15
 	jal		drawVertLine
+	
+	#Draw Paddle 2
+	li		$a0, 62
+	li		$a1, 24
+	li		$a2, 7
+	li		$a3, 15
+	jal		drawVertLine
 
 	#EXIT
 	exit:
