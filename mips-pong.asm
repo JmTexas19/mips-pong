@@ -34,8 +34,8 @@
 	digit3:			.asciiz "3"
 	digit4:			.asciiz "4"
 	
-	#Saved Address
-	ballAddress:		.word 	0		
+	#Ball
+	ballDirection:		.word 	0	
 	
 .text
 main:
@@ -232,11 +232,12 @@ spawnBall:
 	
 	#Start Ball Movement
 	ballLoop:
-	#Get Ball Address
+	#Check Collision
 	lw		$a0, 4($sp)		#X
 	lw		$a1, 8($sp)		#Y
-	jal		calculateAddress
-	sw		$v0, ballAddress
+	addi		$a0, $a0, 1
+	jal	calculateAddress		#Get ball position address
+	jal	checkCollision
 	
 	#Delete Old Ball Position
 	lw		$a0, 4($sp)		#X
@@ -258,7 +259,8 @@ spawnBall:
 	li		$v0, 32			#Load syscall for sleep
 	syscall					#Execute
 	
-	j		ballLoop	
+	#Loop
+	j	ballLoop
 	
 	#RESTORE $RA
 	lw		$ra, 0($sp)		#Restore $ra from stack
@@ -266,6 +268,23 @@ spawnBall:
 	
 	#Return
 	jr		$ra
+
+#Procedure: checkCollision
+#Checks if collision 
+checkCollision:
+	#Get Ball Address Color
+	li	$t0, 16711680			#Red
+	lw	$t1, 0($v0)			#Get color of ball position
+	move	$t2, $t1			#Copy because broken stuff
+	
+	#Check if white or black
+	beqz   	$t2, noCollision
+	sw	$t0, -16($v0)
+	
+	noCollision:
+	#Return
+	jr		$ra		
+
 
 
 
