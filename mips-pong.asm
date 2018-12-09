@@ -545,9 +545,9 @@ checkCollision:
 	addi		$sp, $sp, 4			#Readjust stack
 	
 	#Play Ball Collision Sound
-	li		$a0, 100			#Pitch
+	li		$a0, 100		#Pitch
 	li		$a1, 300		#Duration
-	li		$a2, 5			#Instrument
+	li		$a2, 24			#Instrument
 	li		$a3, 127		#Volume
 	li		$v0, 31			#Load syscall
 	syscall					#Execute
@@ -800,6 +800,9 @@ winGame:
 	la		$a2, win
 	jal		outText
 	
+	#Play Sound
+	jal		playVictory
+	
 	#Pause
 	li		$a0, 2000		#Sleep for 500ms
 	li		$v0, 32			#Load syscall for sleep
@@ -815,6 +818,149 @@ winGame:
 	#Done
 	jal		drawScore
 	j		main
+	
+#Procedure: playLose
+#Play Lose Sound
+playLose:
+	#SOUND
+	li		$a0, 82			#Pitch
+	li		$a1, 400		#Duration
+	li		$a2, 58			#Instrument
+	li		$a3, 127		#Volume
+	li		$v0, 31			#Load syscall
+	syscall					#Execute
+	
+	#Pause
+	li		$a0, 500		#Sleep for 500ms
+	li		$v0, 32			#Load syscall for sleep
+	syscall					#Execute
+	
+	#SOUND
+	li		$a0, 81			#Pitch
+	li		$v0, 31			#Load syscall
+	syscall					#Execute
+	
+	#Pause
+	li		$a0, 500		#Sleep for 500ms
+	li		$v0, 32			#Load syscall for sleep
+	syscall					#Execute
+	
+	#SOUND
+	li		$a0, 80			#Pitch
+	li		$v0, 31			#Load syscall
+	syscall					#Execute
+	
+	#Pause
+	li		$a0, 500		#Sleep for 500ms
+	li		$v0, 32			#Load syscall for sleep
+	syscall					#Execute
+	
+	#SOUND
+	li		$a0, 79			#Pitch
+	li		$a1, 1500		#Duration
+	li		$v0, 31			#Load syscall
+	syscall					#Execute
+	
+	jr		$ra
+	
+#Procedure: playVictory
+#Play Victory Sound
+playVictory:
+	#SOUND
+	li		$a0, 84			#Pitch
+	li		$a1, 300		#Duration
+	li		$a2, 5			#Instrument
+	li		$a3, 127		#Volume
+	li		$v0, 31			#Load syscall
+	syscall					#Execute
+	
+	#Pause
+	li		$a0, 180		#Sleep for 500ms
+	li		$v0, 32			#Load syscall for sleep
+	syscall					#Execute
+	
+	#SOUND
+	li		$a0, 84			#Pitch
+	li		$v0, 31			#Load syscall
+	syscall					#Execute
+	
+	#Pause
+	li		$a0, 180		#Sleep for 500ms
+	li		$v0, 32			#Load syscall for sleep
+	syscall					#Execute
+	
+	#SOUND
+	li		$a0, 84			#Pitch
+	li		$v0, 31			#Load syscall
+	syscall					#Execute
+	
+	#Pause
+	li		$a0, 180		#Sleep for 500ms
+	li		$v0, 32			#Load syscall for sleep
+	syscall					#Execute
+	
+	#SOUND
+	li		$a0, 84			#Pitch
+	li		$a1, 600		#Duration
+	li		$v0, 31			#Load syscall
+	syscall					#Execute
+	
+	#Pause
+	li		$a0, 500		#Sleep for 500ms
+	li		$v0, 32			#Load syscall for sleep
+	syscall					#Execute
+	
+	#SOUND
+	li		$a0, 79			#Pitch
+	li		$a1, 500		#Duration
+	li		$v0, 31			#Load syscall
+	syscall					#Execute
+	
+	#Pause
+	li		$a0, 450		#Sleep for 500ms
+	li		$v0, 32			#Load syscall for sleep
+	syscall					#Execute
+	
+	#SOUND
+	li		$a0, 81			#Pitch
+	li		$a1, 500		#Duration
+	li		$v0, 31			#Load syscall
+	syscall					#Execute
+	
+	#Pause
+	li		$a0, 450		#Sleep for 500ms
+	li		$v0, 32			#Load syscall for sleep
+	syscall					#Execute
+	
+	#SOUND
+	li		$a0, 84			#Pitch
+	li		$a1, 600		#Duration
+	li		$v0, 31			#Load syscall
+	syscall					#Execute
+	
+	#Pause
+	li		$a0, 350		#Sleep for 500ms
+	li		$v0, 32			#Load syscall for sleep
+	syscall					#Execute
+	
+	#SOUND
+	li		$a0, 81			#Pitch
+	li		$a1, 150		#Duration
+	li		$v0, 31			#Load syscall
+	syscall					#Execute
+	
+	#Pause
+	li		$a0, 150		#Sleep for 500ms
+	li		$v0, 32			#Load syscall for sleep
+	syscall					#Execute
+	
+	#SOUND
+	li		$a0, 84			#Pitch
+	li		$a1, 1000		#Duration
+	li		$v0, 31			#Load syscall
+	syscall					#Execute
+	
+	jr		$ra
 
 #Procedure: loseGame
 #Player loses game, display loser screen
@@ -826,10 +972,13 @@ loseGame:
 	sw		$t0, pScore	
 	
 	#Draw Score LOSE
-	li		$a0, 13
+	li		$a0, 12
 	li		$a1, 30
 	la		$a2, lose
 	jal		outText
+	
+	#Play Sound
+	jal		playLose
 	
 	#Pause
 	li		$a0, 2000		#Sleep for 500ms
