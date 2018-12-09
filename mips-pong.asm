@@ -26,6 +26,12 @@
         .byte   '2', 0x7e,0xff,0x83,0x06,0x0c,0x18,0x30,0x60,0xc0,0xc1,0xff,0x7e
         .byte   '3', 0x7e,0xff,0x83,0x03,0x03,0x1e,0x1e,0x03,0x03,0x83,0xff,0x7e
         .byte   '4', 0xc3,0xc3,0xc3,0xc3,0xc3,0xff,0x7f,0x03,0x03,0x03,0x03,0x03
+        .byte   'W', 0xc3,0xc3,0xc3,0xdb,0xdb,0xdb,0xdb,0x5a,0x5a,0x5a,0x66,0x66
+        .byte   'I', 0x3c,0x18,0x18,0x18,0x18,0x18,0x18,0x18,0x18,0x18,0x18,0x3c
+        .byte	'N', 0x81,0x81,0xc1,0xe1,0xb1,0x99,0x99,0x8d,0x87,0x83,0x81,0x81
+        
+        #WIN
+        win:			.asciiz "WIN"
         
         #Digits
         digit0:			.asciiz "0"
@@ -140,6 +146,7 @@ drawScore:
 	beq		$t0, 1, drawdigit1
 	beq		$t0, 2, drawdigit2
 	beq		$t0, 3, drawdigit3
+	beq		$t0, 4, drawdigit4
 	
 	#Draw Score P1
 	drawdigit0:
@@ -162,6 +169,11 @@ drawScore:
 	jal		outText
 	j		aiDrawScore
 	
+	drawdigit4:
+	la		$a2, digit4
+	jal		outText
+	j		aiDrawScore
+	
 	#Draw Score AI
 	aiDrawScore:
 	lw		$t1, aiScore
@@ -171,6 +183,7 @@ drawScore:
 	beq		$t1, 1, drawaidigit1
 	beq		$t1, 2, drawaidigit2
 	beq		$t1, 3, drawaidigit3
+	beq		$t1, 4, drawaidigit4
 	
 	drawaidigit0:
 	la		$a2, digit0
@@ -190,6 +203,12 @@ drawScore:
 	drawaidigit3:
 	la		$a2, digit3
 	jal		outText
+	j		doneScore
+	
+	drawaidigit4:
+	la		$a2, digit4
+	jal		outText
+	j		doneScore
 	
 	doneScore:
 	lw		$ra, 0($sp)		#Restore $ra from stack
@@ -678,24 +697,29 @@ endRound:
 	li		$a2, 0
 	li		$a3, 45
 	jal		drawVertLine
+	
+	#Reset Paddle Limits
 	li		$s3, 0		#Reset Paddle Counter
+	li		$s4, 0		#Reset Paddle Counter
 	
 	#Increment Score
 	lw		$t0, pScore
 	addi		$t0, $t0, 1
 	sw		$t0, pScore
+	
+	beq  		$t0, 4, winGame
 	j		main
 	
 	#Add Ai Point
 	incrementAI:
 	#Clear Paddles
 	li		$a0, 1
-	li		$a1, 16
+	li		$a1, 17
 	li		$a2, 0
 	li		$a3, 45
 	jal		drawVertLine
 	li		$a0, 62
-	li		$a1, 16
+	li		$a1, 17
 	li		$a2, 0
 	li		$a3, 45
 	jal		drawVertLine
@@ -708,8 +732,66 @@ endRound:
 	lw		$t0, aiScore
 	addi		$t0, $t0, 1
 	sw		$t0, aiScore
+	
+	beq  		$t0, 4, loseGame
 	j		main
 	
+
+#Procedure: winGame
+#Player wins game, display winner screen
+winGame:
+	#Reset Scores
+	jal		drawScore
+	li		$t0, 0
+	sw		$t0, aiScore
+	sw		$t0, pScore
+	
+	#Draw Score WIN
+	li		$a0, 18
+	li		$a1, 20
+	la		$a2, win
+	jal		outText
+	
+	#Pause
+	li		$a0, 2000		#Sleep for 500ms
+	li		$v0, 32			#Load syscall for sleep
+	syscall					#Execute
+	
+	#Done
+	jal		drawScore
+	j		main
+
+#Procedure: loseGame
+#Player loses game, display loser screen
+loseGame:
+	#Reset Scores
+	jal		drawScore
+	li		$t0, 0
+	sw		$t0, aiScore
+	sw		$t0, pScore	
+	
+	#Draw Score WIN
+	li		$a0, 18
+	li		$a1, 30
+	la		$a2, win
+	jal		outText
+	
+	#Pause
+	li		$a0, 2000		#Sleep for 500ms
+	li		$v0, 32			#Load syscall for sleep
+	syscall					#Execute
+	
+	#Done
+	jal		drawScore
+	
+	#Clear Middle
+	li		$a0, 18
+	li		$a1, 18
+	li		$a2, 0
+	li		$a3, 30
+	jal		drawBox
+	
+	j		main
 
 #Procedure: movePaddle
 #Allow player to move paddle up and down
