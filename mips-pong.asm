@@ -543,6 +543,15 @@ checkCollision:
 	sw		$t1, collision			#Store collision	
 	lw		$ra, 0($sp)			#Restore $ra from stack
 	addi		$sp, $sp, 4			#Readjust stack
+	
+	#Play Ball Collision Sound
+	li		$a0, 100			#Pitch
+	li		$a1, 300		#Duration
+	li		$a2, 5			#Instrument
+	li		$a3, 127		#Volume
+	li		$v0, 31			#Load syscall
+	syscall					#Execute
+	
 	jr		$ra
 	
 	noCollision:	
