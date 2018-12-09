@@ -333,6 +333,8 @@ spawnBall:
 	#Ball Coordinates
 	li		$a0, 31			#X
 	li		$a1, 39			#Y
+	li		$t0, 0
+	sw		$t0, yOffset		#Reset yOffset
 	
 	#Stack
 	addi		$sp, $sp, -12		#Make room on stack for 1 words
@@ -413,10 +415,14 @@ spawnBall:
 	jal		drawDot
 	
 	#Do AI Action
+	bne 		$s5, 5, skipAIAction	#Counter
 	lw		$a0, 4($sp)		#X
 	lw		$a1, 8($sp)		#X
 	jal		aiAction		
+	li		$s5, 0
 	
+	skipAIAction:
+	addi		$s5, $s5, 1
 	#Pause
 	li		$a0, 50			#Sleep for 500ms
 	li		$v0, 32			#Load syscall for sleep
