@@ -721,6 +721,23 @@ endRound:
 	addi		$t0, $t0, 1
 	sw		$t0, pScore
 	
+	#Play Sounds
+	li		$a0, 100		#Pitch
+	li		$a1, 300		#Duration
+	li		$a2, 5			#Instrument
+	li		$a3, 127		#Volume
+	li		$v0, 31			#Load syscall
+	syscall	
+	
+	#Pause
+	li		$a0, 200		#Sleep for 500ms
+	li		$v0, 32			#Load syscall for sleep
+	syscall					#Execute
+	
+	li		$a0, 105		#Pitch
+	li		$v0, 31			#Load syscall
+	syscall	
+	
 	beq  		$t0, 4, winGame
 	j		main
 	
@@ -747,6 +764,23 @@ endRound:
 	addi		$t0, $t0, 1
 	sw		$t0, aiScore
 	
+	#Play Sounds
+	li		$a0, 100		#Pitch
+	li		$a1, 300		#Duration
+	li		$a2, 5			#Instrument
+	li		$a3, 127		#Volume
+	li		$v0, 31			#Load syscall
+	syscall	
+	
+	#Pause
+	li		$a0, 200		#Sleep for 500ms
+	li		$v0, 32			#Load syscall for sleep
+	syscall					#Execute
+	
+	li		$a0, 105		#Pitch
+	li		$v0, 31			#Load syscall
+	syscall	
+		
 	beq  		$t0, 4, loseGame
 	j		main
 	
