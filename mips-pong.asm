@@ -44,6 +44,9 @@
 	#Paddles
 	paddleX:		.word	0
 	paddleY:		.word	0
+	aiPaddleX:		.word	0
+	aiPaddleY:		.word	0
+	aiPaddleCenter:		.word  	0
 	
 	#Score
 	pScore:			.word	0
@@ -66,10 +69,16 @@ main:
 	
 	#Draw Paddle 2
 	li		$a0, 62
+	sw		$a0, aiPaddleX
 	li		$a1, 32
+	sw		$a1, aiPaddleY
 	li		$a2, 7
 	li		$a3, 15
 	jal		drawVertLine
+	
+	#Get Paddle Center AI
+	addi		$a1, $a1, -7
+	sw		$a1, aiPaddleCenter
 	
 	#Draw Walls
 	li		$a0, 0
@@ -403,6 +412,11 @@ spawnBall:
 	sw		$a1, 8($sp)		#Store $ra on element 4 of stack
 	jal		drawDot
 	
+	#Do AI Action
+	lw		$a0, 4($sp)		#X
+	lw		$a1, 8($sp)		#X
+	jal		aiAction		
+	
 	#Pause
 	li		$a0, 50			#Sleep for 500ms
 	li		$v0, 32			#Load syscall for sleep
@@ -649,14 +663,14 @@ endRound:
 	#Add P Point
 	#Clear Paddles
 	li		$a0, 1
-	li		$a1, 18
+	li		$a1, 17
 	li		$a2, 0
-	li		$a3, 40
+	li		$a3, 45
 	jal		drawVertLine
 	li		$a0, 62
-	li		$a1, 18
+	li		$a1, 17
 	li		$a2, 0
-	li		$a3, 40
+	li		$a3, 45
 	jal		drawVertLine
 	li		$s3, 0		#Reset Paddle Counter
 	
@@ -670,16 +684,19 @@ endRound:
 	incrementAI:
 	#Clear Paddles
 	li		$a0, 1
-	li		$a1, 18
+	li		$a1, 16
 	li		$a2, 0
-	li		$a3, 40
+	li		$a3, 45
 	jal		drawVertLine
 	li		$a0, 62
-	li		$a1, 18
+	li		$a1, 16
 	li		$a2, 0
-	li		$a3, 40
+	li		$a3, 45
 	jal		drawVertLine
+	
+	#Reset Paddle Limits
 	li		$s3, 0		#Reset Paddle Counter
+	li		$s4, 0		#Reset Paddle Counter
 	
 	#Increment Score
 	lw		$t0, aiScore
@@ -853,6 +870,78 @@ _text9:
         lw      $ra, 20($sp)
         addiu   $sp, $sp, 24
         jr      $ra
+        
+#Procedure: aiAction
+#Does the action for the AI
+aiAction:
+	#Stack
+	addi		$sp, $sp, -4		#Make room on stack for 1 words
+	sw		$ra, 0($sp)		#Store $ra on element 4 of stack
+	
+	#Check y position of the ball
+	lw		$t0, aiPaddleCenter
+	blt 		$a1, $t0, moveAIUp
+	bgt 		$a1, $t0, moveAIDown
+
+	moveAIUp:
+	#Up
+	bge  		$s4, 5, skipMove	#Max Movement Counter
+	#Erase Old Line
+	lw		$a0, aiPaddleX
+	lw		$a1, aiPaddleY
+	li		$a2, 0
+	li		$a3, 15
+	jal		drawVertLine
+	
+	#Draw New Line
+	lw		$a0, aiPaddleX
+	lw		$a1, aiPaddleY
+	addi		$a1, $a1, -3		#Increment Y
+	sw		$a0, aiPaddleX
+	sw		$a1, aiPaddleY
+	li		$a2, 7
+	li		$a3, 15
+	jal		drawVertLine
+	addi		$s4, $s4, 1
+	
+	#Get Paddle Center AI
+	addi		$a1, $a1, -7
+	sw		$a1, aiPaddleCenter
+	
+	#RESTORE $RA
+	lw		$ra, 0($sp)		#Restore $ra from stack
+	addi		$sp, $sp, 4		#Readjust stack
+	jr		$ra
+	
+	moveAIDown:
+	ble  		$s4, -5, skipMove	#Max Movement Counter
+	#Erase Old Line
+	lw		$a0, aiPaddleX
+	lw		$a1, aiPaddleY
+	li		$a2, 0
+	li		$a3, 15
+	jal		drawVertLine
+	
+	#Draw New Line
+	lw		$a0, aiPaddleX
+	lw		$a1, aiPaddleY
+	addi		$a1, $a1, 3		#Increment Y
+	sw		$a0, aiPaddleX
+	sw		$a1, aiPaddleY
+	li		$a2, 7
+	li		$a3, 15
+	jal		drawVertLine
+	addi		$s4, $s4, -1
+	
+	#Get Paddle Center AI
+	addi		$a1, $a1, -7
+	sw		$a1, aiPaddleCenter
+	
+	#RESTORE $RA
+	lw		$ra, 0($sp)		#Restore $ra from stack
+	addi		$sp, $sp, 4		#Readjust stack
+	jr		$ra
+
 
 #Procedure: getChar
 #Poll the keypad, wait for input
