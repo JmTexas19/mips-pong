@@ -129,11 +129,12 @@ main:
 	jal		spawnBall
 	jal		getInput
 
+########################################## START GAME
+
 	#EXIT
 	exit:
 	li		$v0, 17			#Load exit call
 	syscall					#Execute
-########################################## START GAME
 
 #Procedure: drawScore:
 #Draw the score for the players
@@ -182,7 +183,7 @@ drawScore:
 	#Draw Score AI
 	aiDrawScore:
 	lw		$t1, aiScore
-	li		$a0, 52
+	li		$a0, 53
 	li		$a1, 2
 	beq		$t1, 0, drawaidigit0
 	beq		$t1, 1, drawaidigit1
